@@ -45,7 +45,7 @@ class DNSProxy(Thread):
 		return config
 	
 	def find_upstream_server(self, domain):
-		return self.config.get('upstream', 'ip')
+		return rewrite.upstream_server(domain)
 	
 	def read_client_socket(self):
 		pkt, addr = self.client_sock.recvfrom(8192)
@@ -86,7 +86,8 @@ class DNSProxy(Thread):
 		if response:
 			self.output_queue[self.master_sock].append((response.pack(), addr))
 		else:
-			self.output_queue[self.client_sock].append((msg.pack(), (self.find_upstream_server(None), 53)))
+			domain = str(msg.questions[0].qname) if len(msg.questions) else ""
+			self.output_queue[self.client_sock].append((msg.pack(), (self.find_upstream_server(domain), 53)))
 			self.pending_requests[msg.header.id] = (msg, addr, {"timestamp": datetime.now()})
 	
 	def write_socket(self, sock):
@@ -159,7 +160,7 @@ if __name__ == "__main__":
 	
 	rewrite.initialize()
 	
-	proxy = DNSProxy(None)
+	proxy = DNSProxy("proxy.ini")
 
 	# stupid hack to allow it to catch interruptions. better suggestions? 
 	while True:

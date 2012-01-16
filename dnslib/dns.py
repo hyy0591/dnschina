@@ -153,10 +153,11 @@ class DNSRecord(object):
             self.rr.append(a)
         self.set_header_qa()
 
-    def reply(self,data="",ra=1,aa=1):
+    def reply(self,data="",ra=1,aa=1,rtype=None):
+        if rtype == None: rtype = self.q.qtype
         return DNSRecord(DNSHeader(id=self.header.id,bitmap=self.header.bitmap,qr=1,ra=ra,aa=aa),
                          q=self.q,
-                         a=RR(self.q.qname,self.q.qtype,rdata=RDMAP[QTYPE[self.q.qtype]](data)))
+                         a=RR(self.q.qname,rtype,rdata=RDMAP[QTYPE[rtype]](data)))
 
     def add_question(self,q):
         self.questions.append(q)
