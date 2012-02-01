@@ -7,7 +7,7 @@ import os
 import struct
 import select
 from Queue import Queue
-from dnslib.dns import DNSRecord, DNSQuestion
+from dnslib.dns import *
 import time
 import pygeoip
 from datetime import datetime, timedelta
@@ -208,6 +208,7 @@ if __name__ == "__main__":
 	
 	prefs["blocked_suffixes"] = [
 		'.google-analytics.com', 
+		'.doubleclick.net', 
 	]
 	
 	prefs["suffix_hosts"] = {
@@ -225,9 +226,27 @@ if __name__ == "__main__":
 		".akamaihd.net"				:		"219.188.199.151", 
 	}
 	
-	prefs["cname_rewrite"] = {
+	prefs["cname_hosts"] = {
 		".edgesuite.net"			:		"219.188.199.151", 
 	}
+	
+	def load_hosts():
+		import os.path
+		if os.path.exists("hosts"):
+			f = open("hosts", "r")
+			content = f.readlines()
+			f.close()
+			
+			for line in content:
+				effective = line.split("#")[0].strip()
+				components = effective.split()
+				if len(components) >= 2: # ip host1 host2 host3 ...
+					for host in components[1:]:
+						prefs["hosts"][host] = components[0]
+		
+	load_hosts()
+	
+	print "Total %d hosts" % len(prefs["hosts"])
 	
 	global proxy
 	proxy = DNSProxy(prefs)
