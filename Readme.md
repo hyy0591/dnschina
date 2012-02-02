@@ -19,9 +19,11 @@ DNS反污染代理。同pydnsproxy类似，原理不同。**** 目前仅仅我�
 
 请确保Python版本为2.5~2.7之间。
 获取代码
-	git clone https://github.com/ccp0101/dnschina
+
+    git clone https://github.com/ccp0101/dnschina
 
 修改dnsproxy.py
+
     prefs = {
         "upstream_domestic" : "202.96.134.33", 
         "upstream_foreign" : "8.8.8.8", 
@@ -29,10 +31,12 @@ DNS反污染代理。同pydnsproxy类似，原理不同。**** 目前仅仅我�
     }
 
 将202.96.134.33改为本地ISP的DNS服务器。然后运行
-	sudo python dnsproxy.py
+
+    sudo python dnsproxy.py
 
 DNS服务就启动了。mac用户可以测试
-	dig @127.0.0.1 www.youtube.com
-	dig @127.0.0.1 www.google.com
+
+    dig @127.0.0.1 www.youtube.com
+    dig @127.0.0.1 www.google.com
 
 返回的应该是有效IP。
