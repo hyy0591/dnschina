@@ -74,6 +74,7 @@ class DNSProxy(object):
 		
 		response = self.respond(msg)
 		if response:
+			print response
 			self.output_queue[self.master_sock].append((response.pack(), addr))
 		else:
 			domain = str(msg.questions[0].qname) if len(msg.questions) else ""
@@ -84,7 +85,10 @@ class DNSProxy(object):
 		while True:
 			try: pkt, addr = self.output_queue[sock].pop(0)
 			except IndexError: break
-			sock.sendto(pkt, addr)
+			try: 
+				sock.sendto(pkt, addr)
+			except socket.error, msg:
+				print "sock.sendto received error " + msg
 	
 	def _run(self):
 		print "DNSProxy starting up."
@@ -177,9 +181,7 @@ def cleanup(*args):
 	proxy.cleanup()
 	sys.exit(0)
 
-if __name__ == "__main__":
-	signal.signal(signal.SIGINT, cleanup)
-	
+if __name__ == "__main__":	
 	prefs = {
 		"upstream_domestic" : "202.96.134.33", 
 		"upstream_foreign" : "8.8.8.8", 
@@ -202,7 +204,7 @@ if __name__ == "__main__":
 	]
 	
 	prefs["hosts"] = {
-		
+		"localhost"					:		"127.0.0.1", 
 	}
 	
 	prefs["blocked_suffixes"] = [
@@ -241,6 +243,7 @@ if __name__ == "__main__":
 				components = effective.split()
 				if len(components) >= 2: # ip host1 host2 host3 ...
 					for host in components[1:]:
+						# naively assume IP address is valid
 						prefs["hosts"][host] = components[0]
 		
 	load_hosts()
@@ -249,4 +252,5 @@ if __name__ == "__main__":
 	
 	global proxy
 	proxy = DNSProxy(prefs)
+	signal.signal(signal.SIGINT, cleanup)
 	proxy.run()
