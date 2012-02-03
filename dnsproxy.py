@@ -88,7 +88,7 @@ class DNSProxy(object):
 			try: 
 				sock.sendto(pkt, addr)
 			except socket.error, msg:
-				print "sock.sendto received error " + msg
+				print "sock.sendto received error " + str(msg)
 	
 	def _run(self):
 		print "DNSProxy starting up."
