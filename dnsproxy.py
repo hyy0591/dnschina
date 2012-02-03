@@ -91,7 +91,6 @@ class DNSProxy(object):
 				print "sock.sendto received error " + str(msg)
 	
 	def _run(self):
-		print "DNSProxy starting up."
 		self.master_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 		self.master_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.master_sock.setblocking(0)
@@ -102,12 +101,14 @@ class DNSProxy(object):
 		self.client_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.client_sock.setblocking(0)
 		
+		print "DNSProxy started up on %s:%d" % prefs["listen_addr"]
+		
 		self.output_queue = {self.client_sock:list(), self.master_sock:list()}
 		self.pending_requests = {}
 		
 		all_sockets = [self.master_sock, self.client_sock]
 		lastcheck_timestamp = datetime.now()
-		
+				
 		while True:
 			write_sockets = filter(lambda socket: self.output_queue[socket], all_sockets)
 			inputs, outputs, exceptions = select.select(all_sockets, write_sockets, all_sockets, 1)
@@ -210,9 +211,11 @@ if __name__ == "__main__":
 	prefs["blocked_suffixes"] = [
 		'.google-analytics.com', 
 		'.doubleclick.net', 
+		'.2o7.net', 
 	]
 	
 	prefs["suffix_hosts"] = {
+		# Google
 		".googleapis.com"			:		"203.208.46.198", 
 		".appspot.com"				:		"203.208.46.198",
 		".googleusercontent.com"	:		"203.208.46.198", 
@@ -221,6 +224,8 @@ if __name__ == "__main__":
 		".googlesyndication.com"	:		"203.208.46.198",
 		".googlecode.com"			:		"203.208.46.198", 
 		".ggpht.com"				:		"203.208.46.198",
+		
+		# Akamai
 		".phobos.apple.com"			:		"219.188.199.151", # Japan-ODN; "60.172.80.106" Shanghai-ChinaTelecom ; returns 403 on .phobos.apple.com
 		".akamai.net"				:		"219.188.199.151",
 		".mzstatic.com"				:		"219.188.199.151", # # Singapore:58.27.86.158 # Japan-KDDI:115.165.159.212 # HongKong-NTT:210.0.146.52 #Japan-ODN:210.175.5.158
@@ -231,24 +236,39 @@ if __name__ == "__main__":
 		".edgesuite.net"			:		"219.188.199.151", 
 	}
 	
-	def load_hosts():
-		import os.path
-		if os.path.exists("hosts"):
-			f = open("hosts", "r")
-			content = f.readlines()
-			f.close()
-			
-			for line in content:
-				effective = line.split("#")[0].strip()
-				components = effective.split()
-				if len(components) >= 2: # ip host1 host2 host3 ...
-					for host in components[1:]:
-						# naively assume IP address is valid
-						prefs["hosts"][host] = components[0]
+	def load_hosts_file(filename):
+		f = open(filename, "r")
+		content = f.readlines()
+		f.close()
 		
-	load_hosts()
+		for line in content:
+			effective = line.split("#")[0].strip()
+			components = effective.split()
+			if len(components) >= 2: # ip host1 host2 host3 ...
+				for host in components[1:]:
+					# naively assume IP address is valid
+					prefs["hosts"][host] = components[0]
 	
-	print "Total %d hosts" % len(prefs["hosts"])
+	import os.path
+	
+	# Add custom hosts file in /etc/hosts legacy format
+	if os.path.exists("hosts"):
+		load_hosts_file("hosts")
+	
+	# Add AD-blocking hosts file 
+	# Please download from http://winhelp2002.mvps.org/hosts.txt
+	# 	e.g. $ wget http://winhelp2002.mvps.org/hosts.txt -O ad.hosts
+	if os.path.exists("ad.hosts"):
+		load_hosts_file("ad.hosts")
+	
+	
+	print "Total %d host entries loaded" % len(prefs["hosts"])
+	for host in prefs["blocked_suffixes"]:
+		print "*%s is blocked. " % (host)
+	for host in prefs["suffix_hosts"]:
+		print "*%s is overridden to %s." % (host, prefs["suffix_hosts"][host])
+	for host in prefs["cname_hosts"]:
+		print "*%s CNAME is overridden to %s." % (host, prefs["cname_hosts"][host])
 	
 	global proxy
 	proxy = DNSProxy(prefs)
