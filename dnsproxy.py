@@ -11,6 +11,7 @@ from dnslib.dns import *
 import time
 import pygeoip
 from datetime import datetime, timedelta
+import os.path
 
 geoip = pygeoip.GeoIP("GeoIP.dat")
 
@@ -61,7 +62,13 @@ class DNSProxy(object):
 			del self.pending_requests[msg.header.id]
 		
 	def read_master_socket(self):
-		pkt, addr = self.master_sock.recvfrom(8192)
+		try:
+			pkt, addr = self.master_sock.recvfrom(8192)
+		except socket.error, msg:
+			print "self.master_sock.recvfrom received error " + str(msg)
+		except:
+			traceback.print_exc(file=sys.stderr)
+			
 		if not pkt: return
 				
 		try:
@@ -77,7 +84,6 @@ class DNSProxy(object):
 			print response
 			self.output_queue[self.master_sock].append((response.pack(), addr))
 		else:
-			domain = str(msg.questions[0].qname) if len(msg.questions) else ""
 			self.output_queue[self.client_sock].append((msg.pack(), (self.prefs["upstream_domestic"], 53)))
 			self.pending_requests[msg.header.id] = (msg, addr, {"timestamp": datetime.now()})
 	
@@ -209,6 +215,7 @@ if __name__ == "__main__":
 	}
 	
 	prefs["blocked_suffixes"] = [
+		# Ad or tracking, maybe? 
 		'.google-analytics.com', 
 		'.doubleclick.net', 
 		'.2o7.net', 
@@ -248,9 +255,7 @@ if __name__ == "__main__":
 				for host in components[1:]:
 					# naively assume IP address is valid
 					prefs["hosts"][host] = components[0]
-	
-	import os.path
-	
+		
 	# Add custom hosts file in /etc/hosts legacy format
 	if os.path.exists("hosts"):
 		load_hosts_file("hosts")
@@ -262,7 +267,7 @@ if __name__ == "__main__":
 		load_hosts_file("ad.hosts")
 	
 	
-	print "Total %d host entries loaded" % len(prefs["hosts"])
+	print "In total %d host entries loaded" % len(prefs["hosts"])
 	for host in prefs["blocked_suffixes"]:
 		print "*%s is blocked. " % (host)
 	for host in prefs["suffix_hosts"]:
