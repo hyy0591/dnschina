@@ -30,7 +30,15 @@ class DNSProxy(object):
 		self.prefs = prefs
 	
 	def read_client_socket(self):
-		pkt, addr = self.client_sock.recvfrom(8192)
+		try:
+			pkt, addr = self.client_sock.recvfrom(8192)
+		except socket.error, msg:
+			print "self.master_sock.recvfrom received error " + str(msg)
+			return
+		except:
+			traceback.print_exc(file=sys.stderr)
+			return
+		
 		if not pkt: return
 			
 		try:
@@ -66,8 +74,10 @@ class DNSProxy(object):
 			pkt, addr = self.master_sock.recvfrom(8192)
 		except socket.error, msg:
 			print "self.master_sock.recvfrom received error " + str(msg)
+			return
 		except:
 			traceback.print_exc(file=sys.stderr)
+			return
 			
 		if not pkt: return
 				
