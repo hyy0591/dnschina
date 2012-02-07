@@ -175,12 +175,25 @@ class DNSProxy(object):
 		if len(a_list) == 1 and a_list[0].startswith("121.10.40."): 
 			response.rr = []
 
-		# Akamai
 		if len(a_list):
 			for cname in cname_list:
+				# Akamai
 				for c in self.prefs["cname_hosts"]:
 			 		if cname.endswith(c):
 						response.rr = [RR(a_list[0], 1,rdata=A(self.prefs["cname_hosts"][c])), ]
+		
+				# Remove CNAME record if it conflicts with suffix_hosts
+				# e.g. Google Beijing does NOT accept custom domain bound to ghs.google.com
+				#      Google Beijing also does NOT support Google Storage custom domain direct access (gs.ccp.li for test)
+				for c in self.prefs["suffix_hosts"]:
+					if cname.endswith(c):
+						new_rrs = []
+						for rr in response.rr:
+							if rr.rtype != 5:
+								new_rrs.append(rr)
+						response.rr = new_rrs
+						
+		
 		return response
 	
 	def respond(self, request):
