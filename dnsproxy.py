@@ -165,6 +165,7 @@ class DNSProxy(object):
 	def response_rewrite(self, response, query=None):
 		cname_list = []
 		a_list = []
+		query_domain = str(response.questions[0].qname)
 		for rr in response.rr:
 			if rr.rtype == 5:
 				cname_list.append(str(rr.rdata))
@@ -190,7 +191,9 @@ class DNSProxy(object):
 						new_rrs = []
 						for rr in response.rr:
 							if rr.rtype != 5:
-								new_rrs.append(rr)
+								new_rr = rr
+								new_rr.rname = query_domain
+								new_rrs.append(new_rr)
 						response.rr = new_rrs
 						
 		
