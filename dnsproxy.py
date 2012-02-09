@@ -26,6 +26,11 @@ def hexdump(src, length=8):
 	   result.append( b"%04X   %-*s   %s" % (i, length*(digits + 1), hexa, text) )
 	return b'\n'.join(result)
 
+def to_seconds_float(timedelta):
+	if timedelta.days:
+		raise ValueError('Must not have days', timedelta)
+	return timedelta.seconds + timedelta.microseconds / 1E6
+
 class DNSProxy(object):
 	def __init__(self, prefs, logger):
 		self.prefs = prefs
@@ -39,11 +44,14 @@ class DNSProxy(object):
 	def log_query_response(self, query, response):
 		self.logger.info("[%s]\t%s  ->  %s" % (QTYPE[query.questions[0].qtype], str(query.questions[0].qname), ",".join(self.map_printable_answers(response.rr))))
 	
+	def log_query_msg(self, query, msg):
+		self.logger.info("[%s]\t%s  ::  %s" % (QTYPE[query.questions[0].qtype], str(query.questions[0].qname), msg))
+	
 	def read_client_socket(self):
 		try:
 			pkt, addr = self.client_sock.recvfrom(8192)
 		except socket.error, msg:
-			print "self.master_sock.recvfrom received error " + str(msg)
+			logger.error("self.master_sock.recvfrom received error " + str(msg))
 			return
 		except:
 			traceback.print_exc(file=sys.stderr)
@@ -54,6 +62,7 @@ class DNSProxy(object):
 		try:
 			msg = DNSRecord.parse(pkt)
 		except:
+			logger.error("DNSRecord.parse(pkt) received error " + str(msg))
 			traceback.print_exc(file=sys.stderr)
 			return
 		
@@ -83,7 +92,7 @@ class DNSProxy(object):
 		try:
 			pkt, addr = self.master_sock.recvfrom(8192)
 		except socket.error, msg:
-			print "self.master_sock.recvfrom received error " + str(msg)
+			logger.error("self.client_sock.recvfrom received error " + str(msg))
 			return
 		except:
 			traceback.print_exc(file=sys.stderr)
@@ -99,7 +108,7 @@ class DNSProxy(object):
 				
 		response = self.respond(msg)
 		if response:
-			self.log_query_response(msg, response)
+			self.log_query_response(msg, response)			
 			self.output_queue[self.master_sock].append((response.pack(), addr))
 		else:
 			self.output_queue[self.client_sock].append((msg.pack(), (self.prefs["upstream_domestic"], 53)))
@@ -112,7 +121,7 @@ class DNSProxy(object):
 			try: 
 				sock.sendto(pkt, addr)
 			except socket.error, msg:
-				print "sock.sendto received error " + str(msg)
+				logger.error("write_socket() received error " + str(msg))
 	
 	def _run(self):
 		self.master_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -135,17 +144,18 @@ class DNSProxy(object):
 				
 		while True:
 			write_sockets = filter(lambda socket: self.output_queue[socket], all_sockets)
-			inputs, outputs, exceptions = select.select(all_sockets, write_sockets, all_sockets, 1)
+			inputs, outputs, exceptions = select.select(all_sockets, write_sockets, all_sockets, 0.50)
 			if self.client_sock in outputs: self.write_socket(self.client_sock)
 			if self.master_sock in outputs: self.write_socket(self.master_sock)
 			if self.client_sock in inputs: self.read_client_socket()
 			if self.master_sock in inputs: self.read_master_socket()
 			if exceptions: raise Exception("run: select() returned sockets with exceptions")
-			
-			if (lastcheck_timestamp + timedelta(seconds=3)) < datetime.now():
+						
+			if (lastcheck_timestamp + timedelta(seconds=1)) < datetime.now():
 				for key in self.pending_requests.keys():
 					pkt, addr, additional = self.pending_requests[key]
-					if (additional["timestamp"] + timedelta(seconds=30)) < datetime.now():
+					if (additional["timestamp"] + timedelta(seconds=2)) < datetime.now():
+						self.log_query_msg(pkt, "timeout %f secs" % (datetime.now() - additional["timestamp"]).total_seconds())
 						del self.pending_requests[key]
 				lastcheck_timestamp = datetime.now()
 		
@@ -162,7 +172,7 @@ class DNSProxy(object):
 				return
 	
 	def cleanup(self):
-		print "Cleaning up...."
+		logger.info("Cleaning up....")
 		if getattr(self, "master_sock", None):
 			self.master_sock.close()
 			self.master_sock = None
@@ -193,7 +203,7 @@ class DNSProxy(object):
 		
 				# Remove CNAME record if it conflicts with suffix_hosts
 				# e.g. Google Beijing does NOT accept custom domain bound to ghs.google.com
-				#      Google Beijing also does NOT support Google Storage custom domain direct access (gs.ccp.li for test)
+				#	  Google Beijing also does NOT support Google Storage custom domain direct access (gs.ccp.li for test)
 				
 				def _rename_answers(c):
 					if cname.endswith(c):
