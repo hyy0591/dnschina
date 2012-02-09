@@ -242,6 +242,8 @@ if __name__ == "__main__":
 		"upstream_foreign" : "8.8.8.8", 
 		"listen_addr" : ("127.0.0.1", 53), 
 		"log_level" : logging.INFO,
+		"log_stdout" : True, 
+		# "log_output" : "/tmp/mem/dnschina.log"
 	}
 	
 	# GFW
@@ -320,6 +322,13 @@ if __name__ == "__main__":
 	logger.setLevel(prefs["log_level"])
 	ch = logging.StreamHandler()
 	logger.addHandler(ch)
+	
+	if prefs.get("log_output", None):
+		fh = logging.FileHandler(prefs["log_output"])
+		fh.setLevel(prefs["log_level"])
+		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+		fh.setFormatter(formatter)
+		logger.addHandler(fh)
 	
 	logger.info("In total %d host entries loaded" % len(prefs["hosts"]))
 	for host in prefs["blocked_suffixes"]:
