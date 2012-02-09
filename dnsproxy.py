@@ -184,6 +184,10 @@ class DNSProxy(object):
 		cname_list = []
 		a_list = []
 		query_domain = str(response.questions[0].qname)
+		
+		for domain in prefs["ignore_hosts"]:
+			if query_domain == domain: return response
+		
 		for rr in response.rr:
 			if rr.rtype == 5:
 				cname_list.append(str(rr.rdata))
@@ -225,6 +229,9 @@ class DNSProxy(object):
 		response = None
 		if len(request.questions) == 1 and request.questions[0].qtype in [28, 1]: # both A and AAAA are fine
 			domain = str(request.questions[0].qname)
+			for d in prefs["ignore_hosts"]:
+				if domain == d: return response
+			
 			if self.prefs["hosts"].has_key(domain): response = request.reply(self.prefs["hosts"][domain], rtype=1)
 			for i in self.prefs["blocked_suffixes"]:
 				if domain.endswith(i): response = request.reply("0.0.0.0", rtype=1)
@@ -289,10 +296,15 @@ if __name__ == "__main__":
 		".mzstatic.com"				:		"219.188.199.151", # # Singapore:58.27.86.158 # Japan-KDDI:115.165.159.212 # HongKong-NTT:210.0.146.52 #Japan-ODN:210.175.5.158
 		".akamaihd.net"				:		"219.188.199.151", 
 	}
-	
+		
 	prefs["cname_hosts"] = {
 		".edgesuite.net"			:		"219.188.199.151", 
 		".akamaiedge.net"			:		"219.188.199.151",
+	}
+	
+	prefs["ignore_hosts"] = {
+		"storage.l.googleusercontent.com", 
+		"c.commondatastorage.googleapis.com", 
 	}
 	
 	def load_hosts_file(filename):
