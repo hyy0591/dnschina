@@ -438,6 +438,26 @@ class A(RD):
     def pack(self,buffer):
         buffer.pack("!BBBB",*map(int,self.data.split(".")))
 
+class AAAA(RD):
+    
+    @classmethod
+    def parse(cls,buffer,length):
+        ip = buffer.unpack("!HHHHHHHH")
+        def net_to_ipv6(components):
+            import re
+            uncompressed = "%x:%x:%x:%x:%x:%x:%x:%x" % components
+            # http://stackoverflow.com/questions/7043983/ipv6-address-into-compressed-form-in-java/
+            data = re.split("((?:(?:^|:)0+\\b){2,}):?(?!\\S*\\b\\1:0+\\b)(\\S*)", uncompressed)
+            return "".join(map(lambda x:x if x.strip(":0") else "::", filter(lambda x:x, data)))
+        return cls(net_to_ipv6(ip))
+
+    def pack(self,buffer):
+        def ipv6_to_net(ipv6):
+            uncompressed = ipv6.replace("::", (7 + 1 - ipv6.count(":"))*":0"+":")
+            if uncompressed[0] == ":": uncompressed = "0" + uncompressed
+            return uncompressed
+        buffer.pack("!HHHHHHHH",*map(lambda x:int(x, 16),ipv6_to_net(self.data).split(":")))
+
 class MX(RD):
 
     @classmethod
@@ -546,7 +566,7 @@ class SOA(RD):
         return "%s:%s:%s" % (self.mname,self.rname,":".join(map(str,self.times)))
 
 RDMAP = { 'CNAME':CNAME, 'A':A, 'TXT':TXT, 'MX':MX, 
-          'PTR':PTR, 'SOA':SOA, 'NS':NS }
+          'PTR':PTR, 'SOA':SOA, 'NS':NS, 'AAAA':AAAA, }
 
 def test_unpack(s):
     """
