@@ -12,6 +12,7 @@ import time
 import pygeoip
 from datetime import datetime, timedelta
 import os.path
+import logging
 
 geoip = pygeoip.GeoIP("GeoIP.dat")
 
@@ -26,8 +27,17 @@ def hexdump(src, length=8):
 	return b'\n'.join(result)
 
 class DNSProxy(object):
-	def __init__(self, prefs):
+	def __init__(self, prefs, logger):
 		self.prefs = prefs
+		self.logger = logger
+	
+	def map_printable_answers(self, rrs):
+		def mapper(rr):
+			return "%s<%s>" % (QTYPE[rr.rtype], str(rr.rdata))
+		return map(mapper, rrs)
+	
+	def log_query_response(self, query, response):
+		self.logger.info("[%s]\t%s  ->  %s" % (QTYPE[query.questions[0].qtype], str(query.questions[0].qname), ",".join(self.map_printable_answers(response.rr))))
 	
 	def read_client_socket(self):
 		try:
@@ -64,7 +74,7 @@ class DNSProxy(object):
 			
 			msg = self.response_rewrite(msg, query=query)
 			if not msg: return
-			print msg
+			self.log_query_response(query, msg)
 			
 			self.output_queue[self.master_sock].append((msg.pack(), clientaddr))
 			del self.pending_requests[msg.header.id]
@@ -86,12 +96,10 @@ class DNSProxy(object):
 		except:
 			traceback.print_exc(file=sys.stderr)
 			return
-		
-		print msg
-		
+				
 		response = self.respond(msg)
 		if response:
-			print response
+			self.log_query_response(msg, response)
 			self.output_queue[self.master_sock].append((response.pack(), addr))
 		else:
 			self.output_queue[self.client_sock].append((msg.pack(), (self.prefs["upstream_domestic"], 53)))
@@ -117,7 +125,7 @@ class DNSProxy(object):
 		self.client_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.client_sock.setblocking(0)
 		
-		print "DNSProxy started up on %s:%d" % prefs["listen_addr"]
+		self.logger.info("DNSProxy started up on %s:%d" % prefs["listen_addr"])
 		
 		self.output_queue = {self.client_sock:list(), self.master_sock:list()}
 		self.pending_requests = {}
@@ -186,7 +194,8 @@ class DNSProxy(object):
 				# Remove CNAME record if it conflicts with suffix_hosts
 				# e.g. Google Beijing does NOT accept custom domain bound to ghs.google.com
 				#      Google Beijing also does NOT support Google Storage custom domain direct access (gs.ccp.li for test)
-				for c in self.prefs["suffix_hosts"]:
+				
+				def _rename_answers(c):
 					if cname.endswith(c):
 						new_rrs = []
 						for rr in response.rr:
@@ -195,7 +204,10 @@ class DNSProxy(object):
 								new_rr.rname = query_domain
 								new_rrs.append(new_rr)
 						response.rr = new_rrs
-						
+				for c in self.prefs["suffix_hosts"]:
+					_rename_answers(c)
+				for c in self.prefs["cname_hosts"]:
+					_rename_answers(c)
 		
 		return response
 	
@@ -219,6 +231,7 @@ if __name__ == "__main__":
 		"upstream_domestic" : "202.96.134.33", 
 		"upstream_foreign" : "8.8.8.8", 
 		"listen_addr" : ("127.0.0.1", 53), 
+		"log_level" : logging.INFO,
 	}
 	
 	# GFW
@@ -267,6 +280,7 @@ if __name__ == "__main__":
 	
 	prefs["cname_hosts"] = {
 		".edgesuite.net"			:		"219.188.199.151", 
+		".akamaiedge.net"			:		"219.188.199.151",
 	}
 	
 	def load_hosts_file(filename):
@@ -292,16 +306,20 @@ if __name__ == "__main__":
 	if os.path.exists("ad.hosts"):
 		load_hosts_file("ad.hosts")
 	
+	logger = logging.getLogger("dnsproxy")
+	logger.setLevel(prefs["log_level"])
+	ch = logging.StreamHandler()
+	logger.addHandler(ch)
 	
-	print "In total %d host entries loaded" % len(prefs["hosts"])
+	logger.info("In total %d host entries loaded" % len(prefs["hosts"]))
 	for host in prefs["blocked_suffixes"]:
-		print "*%s is blocked. " % (host)
+		logger.info("*%s is blocked. " % (host))
 	for host in prefs["suffix_hosts"]:
-		print "*%s is overridden to %s." % (host, prefs["suffix_hosts"][host])
+		logger.info("*%s is overridden to %s." % (host, prefs["suffix_hosts"][host]))
 	for host in prefs["cname_hosts"]:
-		print "*%s CNAME is overridden to %s." % (host, prefs["cname_hosts"][host])
+		logger.info("*%s CNAME is overridden to %s." % (host, prefs["cname_hosts"][host]))
 	
 	global proxy
-	proxy = DNSProxy(prefs)
+	proxy = DNSProxy(prefs, logger)
 	signal.signal(signal.SIGINT, cleanup)
 	proxy.run()
