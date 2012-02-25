@@ -455,6 +455,7 @@ class AAAA(RD):
         def ipv6_to_net(ipv6):
             uncompressed = ipv6.replace("::", (7 + 1 - ipv6.count(":"))*":0"+":")
             if uncompressed[0] == ":": uncompressed = "0" + uncompressed
+            if uncompressed[-1] == ":": uncompressed = uncompressed + "0"
             return uncompressed
         buffer.pack("!HHHHHHHH",*map(lambda x:int(x, 16),ipv6_to_net(self.data).split(":")))
 

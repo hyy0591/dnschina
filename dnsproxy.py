@@ -295,11 +295,15 @@ if __name__ == "__main__":
 		".akamai.net"				:		"219.188.199.151",
 		".mzstatic.com"				:		"219.188.199.151", # # Singapore:58.27.86.158 # Japan-KDDI:115.165.159.212 # HongKong-NTT:210.0.146.52 #Japan-ODN:210.175.5.158
 		".akamaihd.net"				:		"219.188.199.151", 
+		
+		# Windwos Azure CDN
+		".vo.msecnd.net"			:		"65.54.82.159",     # Windows Azure CDN; Singapore:65.54.82.159; HK:207.46.70.217
 	}
 		
 	prefs["cname_hosts"] = {
 		".edgesuite.net"			:		"219.188.199.151", 
 		".akamaiedge.net"			:		"219.188.199.151",
+		".vo.msecnd.net"			:		"65.54.82.159",     # Windows Azure CDN; Singapore:65.54.82.159; HK:207.46.70.217; Singapore's node runs better for me... 
 	}
 	
 	prefs["ignore_hosts"] = {
@@ -330,17 +334,20 @@ if __name__ == "__main__":
 	if os.path.exists("ad.hosts"):
 		load_hosts_file("ad.hosts")
 	
-	logger = logging.getLogger("dnsproxy")
-	logger.setLevel(prefs["log_level"])
-	ch = logging.StreamHandler()
-	logger.addHandler(ch)
+	def setup_logging():
+		logger = logging.getLogger("dnsproxy")
+		logger.setLevel(prefs["log_level"])
+		ch = logging.StreamHandler()
+		logger.addHandler(ch)
 	
-	if prefs.get("log_output", None):
-		fh = logging.FileHandler(prefs["log_output"])
-		fh.setLevel(prefs["log_level"])
-		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-		fh.setFormatter(formatter)
-		logger.addHandler(fh)
+		if prefs.get("log_output", None):
+			fh = logging.FileHandler(prefs["log_output"])
+			fh.setLevel(prefs["log_level"])
+			formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+			fh.setFormatter(formatter)
+			logger.addHandler(fh)
+		return logger
+	logger = setup_logging()
 	
 	logger.info("In total %d host entries loaded" % len(prefs["hosts"]))
 	for host in prefs["blocked_suffixes"]:
