@@ -6,11 +6,11 @@ DNS反污染代理。同pydnsproxy类似，原理不同。**** 目前仅仅我�
 
 * 采用UDP询问，速度快于TCP
 * 优先尝试本地ISP的DNS，必要情况下尝试境外DNS
-* 自定义hosts
+* 自定义hosts（直接把hosts文件放在dnschina目录内）
 * 可以定义整个域名的IP（如*.googleapis.com）
 * Akamai加速（包括对返回结果中CNAME的识别，如.edgesuite.net）
 * Google北京加速
-* 单进程
+* 单进程（意味着对移动终端比较好）
 * 反深圳电信DNS的404劫持
 * 可以很容易修改代码定制
 
@@ -18,9 +18,10 @@ DNS反污染代理。同pydnsproxy类似，原理不同。**** 目前仅仅我�
 # 安装
 
 请确保Python版本为2.5~2.7之间。
-获取代码
+获取代码 (依赖项six1.1.0已经在e38cdcb中添加)
 
     git clone https://github.com/ccp0101/dnschina
+
 
 修改dnsproxy.py
 
