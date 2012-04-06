@@ -198,6 +198,9 @@ class DNSProxy(object):
 		if len(a_list) == 1 and a_list[0].startswith("121.10.40."): 
 			response.rr = []
 
+		for cname in cname_list:
+			if cname.endswith("akadns.net"): return response
+
 		if len(a_list):
 			for cname in cname_list:
 				# Akamai
@@ -295,6 +298,8 @@ if __name__ == "__main__":
 		".akamai.net"				:		"219.188.199.151",
 		".mzstatic.com"				:		"219.188.199.151", # # Singapore:58.27.86.158 # Japan-KDDI:115.165.159.212 # HongKong-NTT:210.0.146.52 #Japan-ODN:210.175.5.158
 		".akamaihd.net"				:		"219.188.199.151", 
+		".edgekey.net"				:		"219.188.199.151", 
+		".akamaiedge.net"			:		"219.188.199.151", 
 		
 		# Windwos Azure CDN
 		".vo.msecnd.net"			:		"65.54.82.159",     # Windows Azure CDN; Singapore:65.54.82.159; HK:207.46.70.217
