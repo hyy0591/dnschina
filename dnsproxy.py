@@ -248,7 +248,7 @@ def cleanup(*args):
 
 if __name__ == "__main__":	
 	prefs = {
-		"upstream_domestic" : "202.96.134.33", 
+		"upstream_domestic" : "218.85.157.99", 
 		"upstream_foreign" : "8.8.8.8", 
 		"listen_addr" : ("127.0.0.1", 53), 
 		"log_level" : logging.INFO,
